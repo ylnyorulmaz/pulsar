@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Pulse — Agent Monitor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+  <style>
+    body { background: #0b0f14; }
+    .card-active { outline: 2px solid #3b82f6; }
+    .kill-hold-progress { transition: width 0.05s linear; }
+  </style>
+</head>
+<body class="h-full text-slate-100 antialiased">
+  <div class="min-h-full flex flex-col">
+    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-20">
+      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="inline-flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <h1 class="text-lg font-semibold tracking-tight">Pulse</h1>
+          <span class="text-xs text-slate-500 hidden sm:inline">CLI baby monitor</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="connBadge" class="text-xs px-2 py-1 rounded-full bg-slate-800 text-slate-400">Connecting…</span>
+          <button id="tokenBtn" class="text-xs px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800">Set secret</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-4 grid gap-4 lg:grid-cols-2">
+      <section class="space-y-3">
+        <h2 class="text-sm font-medium text-slate-400 uppercase tracking-wider">Agents</h2>
+        <div id="runnerGrid" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+          <p id="emptyState" class="text-slate-500 text-sm col-span-full">No runners connected. Start one with <code class="text-slate-300">pulse run</code>.</p>
+        </div>
+      </section>
+
+      <section class="flex flex-col min-h-[50vh] lg:min-h-0">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-sm font-medium text-slate-400 uppercase tracking-wider">Live terminal</h2>
+          <span id="termLabel" class="text-xs text-slate-500">Select an agent</span>
+        </div>
+        <div class="flex-1 rounded-lg border border-slate-800 bg-black overflow-hidden shadow-inner">
+          <div id="terminal" class="h-[55vh] lg:h-full w-full p-1"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="tokenDialog" class="rounded-lg bg-slate-900 text-slate-100 border border-slate-700 p-4 w-[min(100%,24rem)] backdrop:bg-black/60">
+    <form method="dialog" class="space-y-3">
+      <h3 class="font-medium">Hub secret</h3>
+      <p class="text-xs text-slate-400">Required to send kill commands. Same value as <code>pulse server --secret</code>.</p>
+      <input id="tokenInput" type="password" class="w-full rounded bg-slate-950 border border-slate-700 px-3 py-2 text-sm" placeholder="shared secret" autocomplete="off" />
+      <div class="flex justify-end gap-2">
+        <button value="cancel" class="px-3 py-1.5 text-sm rounded border border-slate-700">Cancel</button>
+        <button id="tokenSave" value="default" class="px-3 py-1.5 text-sm rounded bg-blue-600 hover:bg-blue-500">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const STORAGE_KEY = 'pulse_secret';
+    let secret = localStorage.getItem(STORAGE_KEY) || '';
+    let ws = null;
+    let selectedId = null;
+    let runners = [];
+    const term = new Terminal({
+      theme: { background: '#000000', foreground: '#e2e8f0', cursor: '#3b82f6' },
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+      fontSize: 13,
+      scrollback: 5000,
+    });
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(document.getElementById('terminal'));
+    fitAddon.fit();
+    window.addEventListener('resize', () => fitAddon.fit());
+
+    const connBadge = document.getElementById('connBadge');
+    const runnerGrid = document.getElementById('runnerGrid');
+    const emptyState = document.getElementById('emptyState');
+    const termLabel = document.getElementById('termLabel');
+    const tokenDialog = document.getElementById('tokenDialog');
+    const tokenInput = document.getElementById('tokenInput');
+
+    document.getElementById('tokenBtn').onclick = () => {
+      tokenInput.value = secret;
+      tokenDialog.showModal();
+    };
+    document.getElementById('tokenSave').onclick = (e) => {
+      e.preventDefault();
+      secret = tokenInput.value.trim();
+      localStorage.setItem(STORAGE_KEY, secret);
+      tokenDialog.close();
+    };
+
+    function statusColor(status) {
+      switch (status) {
+        case 'RUNNING': return 'bg-emerald-500/20 text-emerald-300';
+        case 'IDLE': return 'bg-slate-500/20 text-slate-300';
+        case 'KILLED': return 'bg-red-500/20 text-red-300';
+        default: return 'bg-amber-500/20 text-amber-200';
+      }
+    }
+
+    function formatUptime(sec) {
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      if (h) return `${h}h ${m}m`;
+      if (m) return `${m}m ${s}s`;
+      return `${s}s`;
+    }
+
+    function connect() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${proto}//${location.host}/ws/dashboard`);
+      ws.onopen = () => {
+        connBadge.textContent = 'Live';
+        connBadge.className = 'text-xs px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-300';
+      };
+      ws.onclose = () => {
+        connBadge.textContent = 'Reconnecting…';
+        connBadge.className = 'text-xs px-2 py-1 rounded-full bg-amber-500/20 text-amber-200';
+        setTimeout(connect, 1500);
+      };
+      ws.onmessage = (ev) => {
+        let msg;
+        try { msg = JSON.parse(ev.data); } catch { return; }
+        if (msg.type === 'runner_list') {
+          runners = msg.runners || [];
+          renderRunners();
+        } else if (msg.type === 'output' && msg.runner_id === selectedId) {
+          term.write(msg.data);
+        } else if (msg.type === 'catchup' && msg.runner_id === selectedId) {
+          term.clear();
+          (msg.lines || []).forEach((line) => term.writeln(line));
+        }
+      };
+    }
+
+    function subscribe(id) {
+      selectedId = id;
+      const r = runners.find((x) => x.id === id);
+      termLabel.textContent = r ? `${r.name} @ ${r.host}` : id;
+      term.clear();
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'subscribe', runner_id: id }));
+      }
+      renderRunners();
+    }
+
+    function sendKill(id) {
+      if (!secret) {
+        tokenDialog.showModal();
+        return;
+      }
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'kill', runner_id: id, token: secret }));
+      }
+    }
+
+    function makeKillButton(id) {
+      const wrap = document.createElement('div');
+      wrap.className = 'relative';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'relative z-10 w-full text-sm font-semibold py-2 rounded-md bg-red-600/90 hover:bg-red-500 text-white overflow-hidden';
+      btn.textContent = 'Hold to kill';
+      const bar = document.createElement('span');
+      bar.className = 'kill-hold-progress absolute inset-0 bg-red-900/80 z-0';
+      bar.style.width = '0%';
+      btn.prepend(bar);
+
+      let timer = null;
+      let start = 0;
+      const HOLD_MS = 1200;
+
+      const reset = () => {
+        if (timer) clearInterval(timer);
+        timer = null;
+        bar.style.width = '0%';
+        btn.textContent = 'Hold to kill';
+      };
+
+      btn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        start = Date.now();
+        btn.setPointerCapture(e.pointerId);
+        timer = setInterval(() => {
+          const p = Math.min(1, (Date.now() - start) / HOLD_MS);
+          bar.style.width = `${p * 100}%`;
+          if (p >= 1) {
+            reset();
+            sendKill(id);
+            btn.textContent = 'Kill sent';
+          }
+        }, 40);
+      });
+      btn.addEventListener('pointerup', reset);
+      btn.addEventListener('pointerleave', reset);
+      wrap.appendChild(btn);
+      return wrap;
+    }
+
+    function renderRunners() {
+      runnerGrid.querySelectorAll('[data-card]').forEach((el) => el.remove());
+      if (!runners.length) {
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      emptyState.classList.add('hidden');
+      runners.forEach((r) => {
+        const card = document.createElement('article');
+        card.dataset.card = '1';
+        card.className = 'rounded-lg border border-slate-800 bg-slate-900/60 p-3 cursor-pointer hover:border-slate-600 transition';
+        if (r.id === selectedId) card.classList.add('card-active');
+        card.onclick = () => subscribe(r.id);
+
+        const top = document.createElement('div');
+        top.className = 'flex items-start justify-between gap-2 mb-2';
+        const title = document.createElement('div');
+        title.innerHTML = `<div class="font-medium truncate">${escapeHtml(r.name)}</div><div class="text-xs text-slate-500 truncate">${escapeHtml(r.host)}</div>`;
+        const badge = document.createElement('span');
+        badge.className = `text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0 ${statusColor(r.status)}`;
+        badge.textContent = r.status || 'UNKNOWN';
+        top.appendChild(title);
+        top.appendChild(badge);
+
+        const stats = document.createElement('div');
+        stats.className = 'grid grid-cols-3 gap-2 text-xs text-slate-400 mb-3';
+        stats.innerHTML = `
+          <div><span class="text-slate-500">Uptime</span><br>${formatUptime(r.uptime_sec || 0)}</div>
+          <div><span class="text-slate-500">CPU</span><br>${(r.cpu_pct || 0).toFixed(1)}%</div>
+          <div><span class="text-slate-500">RAM</span><br>${(r.mem_mb || 0).toFixed(0)} MB</div>`;
+
+        const actions = document.createElement('div');
+        actions.className = 'flex gap-2 items-center';
+        if (r.admin_url) {
+          const link = document.createElement('a');
+          link.href = r.admin_url;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          link.className = 'flex-1 text-center text-xs py-2 rounded border border-slate-700 hover:bg-slate-800';
+          link.textContent = '↗ Open Panel';
+          link.onclick = (e) => e.stopPropagation();
+          actions.appendChild(link);
+        }
+        const killWrap = makeKillButton(r.id);
+        killWrap.className = (r.admin_url ? 'flex-1' : 'w-full') + ' relative';
+        killWrap.onclick = (e) => e.stopPropagation();
+        actions.appendChild(killWrap);
+
+        card.appendChild(top);
+        card.appendChild(stats);
+        card.appendChild(actions);
+        runnerGrid.appendChild(card);
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    connect();
+    if (!secret) setTimeout(() => tokenDialog.showModal(), 500);
+  </script>
+</body>
+</html>

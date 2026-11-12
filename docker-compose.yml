@@ -1,0 +1,16 @@
+services:
+  pulse:
+    build: .
+    image: pulse:latest
+    ports:
+      - "8741:8741"
+    environment:
+      PULSE_SECRET: ${PULSE_SECRET:-changeme}
+    command:
+      - pulse
+      - server
+      - --addr
+      - :8741
+      - --secret
+      - ${PULSE_SECRET:-changeme}
+    restart: unless-stopped

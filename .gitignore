@@ -1,0 +1,7 @@
+/pulse
+/dist/
+*.exe
+*.test
+.idea/
+.vscode/
+.DS_Store
