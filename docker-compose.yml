@@ -1,16 +1,16 @@
 services:
-  pulse:
+  pulsar:
     build: .
-    image: pulse:latest
+    image: pulsar:latest
     ports:
       - "8741:8741"
     environment:
-      PULSE_SECRET: ${PULSE_SECRET:-changeme}
+      PULSAR_SECRET: ${PULSAR_SECRET:-changeme}
     command:
-      - pulse
+      - pulsar
       - server
       - --addr
       - :8741
       - --secret
-      - ${PULSE_SECRET:-changeme}
+      - ${PULSAR_SECRET:-changeme}
     restart: unless-stopped

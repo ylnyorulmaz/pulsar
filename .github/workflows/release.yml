@@ -44,5 +44,5 @@ jobs:
         with:
           context: .
           push: false
-          tags: pulse:${{ github.ref_name }}
-          outputs: type=docker,dest=/tmp/pulse-image.tar
+          tags: pulsar:${{ github.ref_name }}
+          outputs: type=docker,dest=/tmp/pulsar-image.tar

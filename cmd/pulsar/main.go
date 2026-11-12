@@ -1,4 +1,4 @@
-// Pulse — minimalist self-hosted monitor and remote kill-switch for CLI agents.
+// Pulsar — minimalist self-hosted monitor and remote kill-switch for CLI agents.
 package main
 
 import (
@@ -26,7 +26,7 @@ func main() {
 	case "run":
 		os.Exit(runRunner(os.Args[2:]))
 	case "version", "-v", "--version":
-		fmt.Println("pulse", version)
+		fmt.Println("pulsar", version)
 		os.Exit(0)
 	case "help", "-h", "--help":
 		usage()
@@ -39,19 +39,19 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `Pulse %s — self-hosted CLI agent monitor & kill switch
+	fmt.Fprintf(os.Stderr, `Pulsar %s — self-hosted CLI agent monitor & kill switch
 
 Usage:
-  pulse server --secret <token> [--addr :8741]
-  pulse run --token <token> [--name <label>] [--admin-url <url>] [--hub-url <url>] -- <command> [args...]
+  pulsar server --secret <token> [--addr :8741]
+  pulsar run --token <token> [--name <label>] [--admin-url <url>] [--hub-url <url>] -- <command> [args...]
 
 Environment:
-  PULSE_HUB_URL   Default hub URL for pulse run (fallback: http://127.0.0.1:8741)
+  PULSAR_HUB_URL   Default hub URL for pulsar run (fallback: http://127.0.0.1:8741)
 
 Examples:
-  pulse server --secret "$(openssl rand -hex 16)"
-  pulse run --token "$SECRET" --name hermes -- claude
-  pulse run --token "$SECRET" --admin-url http://127.0.0.1:3000 -- npm run build
+  pulsar server --secret "$(openssl rand -hex 16)"
+  pulsar run --token "$SECRET" --name hermes -- claude
+  pulsar run --token "$SECRET" --admin-url http://127.0.0.1:3000 -- npm run build
 `, version)
 }
 
@@ -110,7 +110,6 @@ func runRunner(args []string) int {
 				if strings.HasPrefix(args[i], "-") {
 					log.Fatalf("unknown flag %q", args[i])
 				}
-				// treat remainder as command if user omitted --
 				cmdArgs = args[i:]
 				seenSep = true
 				break

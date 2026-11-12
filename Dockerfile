@@ -6,12 +6,11 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/pulse ./cmd/pulse
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/pulsar ./cmd/pulsar
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates tini
-COPY --from=build /out/pulse /usr/local/bin/pulse
+COPY --from=build /out/pulsar /usr/local/bin/pulsar
 EXPOSE 8741
-ENV PULSE_ADDR=:8741
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["pulse", "server", "--addr", ":8741"]
+CMD ["pulsar", "server", "--addr", ":8741"]

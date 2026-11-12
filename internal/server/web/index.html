@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <title>Pulse — Agent Monitor</title>
+  <title>Pulsar — Agent Monitor</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
@@ -20,7 +20,7 @@
       <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
         <div class="flex items-center gap-2">
           <span class="inline-flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <h1 class="text-lg font-semibold tracking-tight">Pulse</h1>
+          <h1 class="text-lg font-semibold tracking-tight">Pulsar</h1>
           <span class="text-xs text-slate-500 hidden sm:inline">CLI baby monitor</span>
         </div>
         <div class="flex items-center gap-2">
@@ -34,7 +34,7 @@
       <section class="space-y-3">
         <h2 class="text-sm font-medium text-slate-400 uppercase tracking-wider">Agents</h2>
         <div id="runnerGrid" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          <p id="emptyState" class="text-slate-500 text-sm col-span-full">No runners connected. Start one with <code class="text-slate-300">pulse run</code>.</p>
+          <p id="emptyState" class="text-slate-500 text-sm col-span-full">No runners connected. Start one with <code class="text-slate-300">pulsar run</code>.</p>
         </div>
       </section>
 
@@ -53,7 +53,7 @@
   <dialog id="tokenDialog" class="rounded-lg bg-slate-900 text-slate-100 border border-slate-700 p-4 w-[min(100%,24rem)] backdrop:bg-black/60">
     <form method="dialog" class="space-y-3">
       <h3 class="font-medium">Hub secret</h3>
-      <p class="text-xs text-slate-400">Required to send kill commands. Same value as <code>pulse server --secret</code>.</p>
+      <p class="text-xs text-slate-400">Required to send kill commands. Same value as <code>pulsar server --secret</code>.</p>
       <input id="tokenInput" type="password" class="w-full rounded bg-slate-950 border border-slate-700 px-3 py-2 text-sm" placeholder="shared secret" autocomplete="off" />
       <div class="flex justify-end gap-2">
         <button value="cancel" class="px-3 py-1.5 text-sm rounded border border-slate-700">Cancel</button>
@@ -63,7 +63,7 @@
   </dialog>
 
   <script>
-    const STORAGE_KEY = 'pulse_secret';
+    const STORAGE_KEY = 'pulsar_secret';
     let secret = localStorage.getItem(STORAGE_KEY) || '';
     let ws = null;
     let selectedId = null;

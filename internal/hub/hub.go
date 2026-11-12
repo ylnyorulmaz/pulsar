@@ -29,7 +29,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// Config for the Pulse hub HTTP server.
+// Config for the Pulsar hub HTTP server.
 type Config struct {
 	Addr   string
 	Secret string
@@ -294,7 +294,7 @@ func (s *Server) dashboardReadPump(dc *dashboardClient) {
 				continue
 			}
 			if err := s.sendControl(sess, protocol.ControlKill); err != nil {
-				log.Printf("pulse: kill forward: %v", err)
+				log.Printf("pulsar: kill forward: %v", err)
 			}
 		}
 	}

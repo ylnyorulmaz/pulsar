@@ -1,10 +1,10 @@
-# Pulse
+# Pulsar
 
-**Pulse** is a minimalist, self-hosted “baby monitor” and remote kill-switch for CLI processes and AI agents (Hermes, Claude Code, `llama.cpp`, long builds, etc.). One Go binary — no runtime dependencies.
+**Pulsar** is a minimalist, self-hosted “baby monitor” and remote kill-switch for CLI processes and AI agents (Hermes, Claude Code, `llama.cpp`, long builds, etc.). One Go binary — no runtime dependencies.
 
 ## Features
 
-- **Single binary** — `pulse server` (hub + embedded dashboard) or `pulse run` (PTY wrapper)
+- **Single binary** — `pulsar server` (hub + embedded dashboard) or `pulsar run` (PTY wrapper)
 - **Real PTY** — ANSI colors, TUIs, and progress bars render correctly in the browser (`xterm.js`)
 - **Remote kill switch** — hold-to-kill on mobile; process-group `SIGTERM` → `SIGKILL` on Unix
 - **No arbitrary remote shell** — runners only accept `{"type":"control","action":"KILL"}`
@@ -15,7 +15,7 @@
 
 ```
 ┌─────────────────────┐         WebSocket (outbound)          ┌──────────────────────────┐
-│  pulse run          │ ─────────────────────────────────────▶│  pulse server (hub)      │
+│  pulsar run         │ ─────────────────────────────────────▶│  pulsar server (hub)     │
 │  PTY + child proc   │◀──────── control: KILL only ──────────│  registry + fanout       │
 └─────────────────────┘                                       └───────────┬──────────────┘
                                                                           │
@@ -32,14 +32,14 @@
 ### 1. Build
 
 ```bash
-go build -o pulse ./cmd/pulse
+go build -o pulsar ./cmd/pulsar
 ```
 
 ### 2. Start the hub
 
 ```bash
-export PULSE_SECRET="$(openssl rand -hex 16)"
-./pulse server --secret "$PULSE_SECRET" --addr :8741
+export PULSAR_SECRET="$(openssl rand -hex 16)"
+./pulsar server --secret "$PULSAR_SECRET" --addr :8741
 ```
 
 Open **http://127.0.0.1:8741** — paste the same secret when prompted (for kill authorization).
@@ -47,7 +47,7 @@ Open **http://127.0.0.1:8741** — paste the same secret when prompted (for kill
 ### 3. Wrap any command
 
 ```bash
-./pulse run --token "$PULSE_SECRET" --name claude -- claude
+./pulsar run --token "$PULSAR_SECRET" --name claude -- claude
 ```
 
 Optional flags:
@@ -56,12 +56,12 @@ Optional flags:
 |------|---------|
 | `--name` | Label in the dashboard (default: argv[0]) |
 | `--admin-url` | “↗ Open Panel” link on the agent card |
-| `--hub-url` | Hub base URL (default `http://127.0.0.1:8741`, or `PULSE_HUB_URL`) |
+| `--hub-url` | Hub base URL (default `http://127.0.0.1:8741`, or `PULSAR_HUB_URL`) |
 
 ### Docker
 
 ```bash
-export PULSE_SECRET="$(openssl rand -hex 16)"
+export PULSAR_SECRET="$(openssl rand -hex 16)"
 docker compose up --build
 ```
 
@@ -77,7 +77,7 @@ Runs the hub on port **8741**.
 
 ```bash
 go test ./...
-go build ./cmd/pulse
+go build ./cmd/pulsar
 ```
 
 Releases are built with [GoReleaser](.goreleaser.yml) on tag push (`v*`).

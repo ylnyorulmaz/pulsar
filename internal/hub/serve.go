@@ -20,6 +20,6 @@ func (s *Server) Mount(mux *http.ServeMux, static http.Handler) {
 
 // Serve starts the HTTP server with the given handler tree.
 func (s *Server) Serve(addr string, mux *http.ServeMux) error {
-	log.Printf("pulse hub listening on %s", addr)
+	log.Printf("pulsar hub listening on %s", addr)
 	return http.ListenAndServe(addr, mux)
 }

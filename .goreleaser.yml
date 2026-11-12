@@ -1,5 +1,5 @@
 version: 2
-project_name: pulse
+project_name: pulsar
 
 before:
   hooks:
@@ -7,9 +7,9 @@ before:
     - go test ./...
 
 builds:
-  - id: pulse
-    main: ./cmd/pulse
-    binary: pulse
+  - id: pulsar
+    main: ./cmd/pulsar
+    binary: pulsar
     env:
       - CGO_ENABLED=0
     goos:

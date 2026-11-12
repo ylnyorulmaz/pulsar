@@ -26,7 +26,7 @@ import (
 	"github.com/ylnyorulmaz/pulsar/internal/ringbuffer"
 )
 
-// Config holds CLI options for pulse run.
+// Config holds CLI options for pulsar run.
 type Config struct {
 	Token    string
 	Name     string
@@ -131,7 +131,7 @@ func Run(ctx context.Context, cfg Config) error {
 		cfg.Name = cfg.Command[0]
 	}
 	if cfg.HubURL == "" {
-		cfg.HubURL = os.Getenv("PULSE_HUB_URL")
+		cfg.HubURL = os.Getenv("PULSAR_HUB_URL")
 	}
 	if cfg.HubURL == "" {
 		cfg.HubURL = "http://127.0.0.1:8741"
@@ -200,7 +200,7 @@ func Run(ctx context.Context, cfg Config) error {
 			return
 		}
 		if ctl.Action != protocol.ControlKill {
-			log.Printf("pulse: ignoring unknown control action %q", ctl.Action)
+			log.Printf("pulsar: ignoring unknown control action %q", ctl.Action)
 			return
 		}
 		killed.Store(true)
@@ -243,7 +243,7 @@ func Run(ctx context.Context, cfg Config) error {
 				if ctx.Err() != nil {
 					return
 				}
-				log.Printf("pulse: hub: %v (retry in %s)", err, backoff)
+				log.Printf("pulsar: hub: %v (retry in %s)", err, backoff)
 				time.Sleep(backoff)
 				if backoff < 30*time.Second {
 					backoff *= 2
@@ -252,14 +252,14 @@ func Run(ctx context.Context, cfg Config) error {
 			}
 			backoff = time.Second
 			hc.set(c, id)
-			log.Printf("pulse: connected to hub as %s", id)
+			log.Printf("pulsar: connected to hub as %s", id)
 			sendCatchUp()
 			sendTelemetry(protocol.StatusRunning)
 
 			for {
 				_, raw, err := c.ReadMessage()
 				if err != nil {
-					log.Printf("pulse: hub read: %v", err)
+					log.Printf("pulsar: hub read: %v", err)
 					hc.set(nil, id) // keep id for telemetry attempts until reconnect
 					_ = c.Close()
 					break
@@ -282,7 +282,7 @@ func Run(ctx context.Context, cfg Config) error {
 			}
 			if err != nil {
 				if err != io.EOF {
-					log.Printf("pulse: pty read: %v", err)
+					log.Printf("pulsar: pty read: %v", err)
 				}
 				return
 			}

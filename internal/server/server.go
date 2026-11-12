@@ -12,7 +12,7 @@ import (
 //go:embed web/*
 var webFS embed.FS
 
-// Config for pulse server.
+// Config for pulsar server.
 type Config struct {
 	Addr   string
 	Secret string
